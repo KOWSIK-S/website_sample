@@ -1,63 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>🔌 Live IoT Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; background: #eef2f7; }
-    header { background: #003366; color: white; padding: 1em; text-align: center; font-size: 1.5em; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; padding: 1em; }
-    .card {
-      background: white; border-radius: 10px; padding: 1em; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    #map { height: 300px; }
-    .gpio-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5em; }
-    .switch { display: flex; align-items: center; justify-content: space-between; }
-    .slider { width: 100%; }
-    .label { font-size: 0.9em; margin-top: 0.2em; text-align: center; }
-  </style>
+  <title>MQTT Test Page</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
+  <h2>📡 Raspberry Pi MQTT via Cloudflare Tunnel</h2>
+  <div>
+    <strong>Received Number:</strong> <span id="msg">None</span>
+  </div>
+  <input type="number" id="inputVal" placeholder="Enter number" />
+  <button onclick="send()">Send to Pi</button>
 
-  <h1>📡 Realtime GNSS + I/O Dashboard</h1>
-
-  <!-- Add elements to show or interact with MQTT data -->
-  <p><strong>Status:</strong> <span id="mqtt-status">Not Connected</span></p>
-
-  <!-- ✅ Your MQTT logic script goes here -->
   <script>
-    // Connect to the Raspberry Pi's MQTT broker via WebSocket
-    const client = mqtt.connect('ws://192.168.137.112:9001'); // Replace with your Pi IP
+    const client = mqtt.connect("wss://austin-meetup-activated-marilyn.trycloudflare.com");
 
-    client.on('connect', () => {
+    client.on("connect", () => {
       console.log("✅ Connected to MQTT broker");
-      document.getElementById('mqtt-status').innerText = "Connected";
-
-      // Subscribe to test topic
-      client.subscribe('test/topic', (err) => {
-        if (!err) {
-          console.log("Subscribed to test/topic");
-        }
-      });
-
-      // Publish a message for testing
-      client.publish('test/topic', 'Hello from browser!');
+      client.subscribe("fromPi");
     });
 
-    client.on('message', (topic, message) => {
-      console.log(`📩 ${topic}: ${message.toString()}`);
+    client.on("message", (topic, message) => {
+      if (topic === "fromPi") {
+        document.getElementById("msg").textContent = message.toString();
+      }
     });
 
-    client.on('error', (err) => {
-      console.error("❌ MQTT Error:", err);
-      document.getElementById('mqtt-status').innerText = "Connection Failed";
-    });
+    function send() {
+      const val = document.getElementById("inputVal").value;
+      client.publish("toPi", val);
+    }
   </script>
-
 </body>
 </html>
