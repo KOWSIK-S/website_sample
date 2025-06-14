@@ -1,102 +1,80 @@
-// Tractor UI Web Dashboard (Frontend only, MQTT-ready)
-// Main page with sidebar, routing, toggle + analog + LiDAR UI
-// TailwindCSS, React Router, ShadCN UI for pro look
-
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { useState } from 'react';
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent } from "@/components/ui/card"
-
-function Dashboard() {
-  const [analogInputs, setAnalogInputs] = useState({ A0: 2.45, A1: 2.90, A2: 1.68 });
-  const [toggleState, setToggleState] = useState({ T1: false, T2: false, T3: false, T4: false });
-
-  return (
-    <div className="grid grid-cols-4 gap-4 p-6">
-      <Card className="col-span-2">
-        <CardContent>
-          <h3 className="text-lg font-semibold mb-2">Analog Inputs</h3>
-          {Object.entries(analogInputs).map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between mb-2">
-              <span>{label}: {value.toFixed(2)} V</span>
-              <input className="border p-1 rounded w-20" placeholder="Override" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="col-span-2">
-        <CardContent>
-          <h3 className="text-lg font-semibold mb-2">Toggles</h3>
-          {Object.entries(toggleState).map(([label, isOn]) => (
-            <div key={label} className="flex items-center justify-between mb-2">
-              <span>{label}</span>
-              <Switch checked={isOn} onCheckedChange={(val) => setToggleState(prev => ({ ...prev, [label]: val }))} />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="col-span-4">
-        <CardContent>
-          <h3 className="text-lg font-semibold mb-4">LiDAR - 2D Cloud</h3>
-          <div className="bg-white border rounded shadow h-[300px] flex items-center justify-center">
-            <span className="text-gray-500">[LIDAR Plot Placeholder]</span>
-          </div>
-        </CardContent>
-      </Card>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tractor Dashboard</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+    .container { display: flex; height: 100vh; }
+    .sidebar { width: 200px; background: #222; color: white; padding: 20px; }
+    .sidebar a { display: block; margin: 10px 0; color: white; text-decoration: none; }
+    .main { flex: 1; padding: 20px; overflow-y: scroll; }
+    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .title { font-size: 1.2em; margin-bottom: 10px; }
+    .row { display: flex; justify-content: space-between; margin: 5px 0; }
+    .lidar { background: #eee; height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>🚜 Tractor UI</h2>
+      <a href="#">Dashboard</a>
+      <a href="#">Settings</a>
+      <a href="#">Login</a>
     </div>
-  );
-}
-
-function Settings() {
-  return (
-    <div className="p-6">
-      <Card>
-        <CardContent>
-          <h3 className="text-lg font-semibold mb-4">System Settings</h3>
-          <p className="text-gray-700">Settings page placeholder</p>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function Login() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <Card className="w-[300px]">
-        <CardContent className="flex flex-col gap-4">
-          <h2 className="text-xl font-bold">Login</h2>
-          <input placeholder="Username" className="border p-2 rounded" />
-          <input type="password" placeholder="Password" className="border p-2 rounded" />
-          <button className="bg-black text-white px-4 py-2 rounded">Login</button>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-export default function App() {
-  return (
-    <Router>
-      <div className="flex min-h-screen">
-        <aside className="bg-gray-100 w-[220px] p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Tractor UI</h2>
-          <nav className="flex flex-col space-y-2">
-            <Link to="/" className="text-blue-600">Dashboard</Link>
-            <Link to="/settings" className="text-blue-600">Settings</Link>
-            <Link to="/login" className="text-blue-600">Login</Link>
-          </nav>
-        </aside>
-        <main className="flex-1 bg-white">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </main>
+    <div class="main">
+      <div class="card">
+        <div class="title">Analog Inputs</div>
+        <div id="analog"></div>
       </div>
-    </Router>
-  );
-}
+      <div class="card">
+        <div class="title">Toggles</div>
+        <div id="toggles"></div>
+      </div>
+      <div class="card">
+        <div class="title">Sensor Data</div>
+        <div id="sensors"></div>
+      </div>
+      <div class="card">
+        <div class="title">LiDAR</div>
+        <div class="lidar">[LIDAR Plot Placeholder]</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const analogDiv = document.getElementById('analog');
+    const toggleDiv = document.getElementById('toggles');
+    const sensorDiv = document.getElementById('sensors');
+
+    const client = mqtt.connect('wss://austin-meetup-activated-marilyn.trycloudflare.com');
+
+    client.on('connect', () => {
+      console.log('MQTT connected');
+      client.subscribe('tractor/analog');
+      client.subscribe('tractor/toggles');
+      client.subscribe('tractor/sensors');
+    });
+
+    client.on('message', (topic, message) => {
+      const clean = JSON.parse(message.toString().replace(/'/g, '"'));
+      if (topic === 'tractor/analog') {
+        analogDiv.innerHTML = Object.entries(clean).map(([k,v]) => `<div class='row'><span>${k}</span><span>${v.toFixed(2)} V</span></div>`).join('');
+      }
+      if (topic === 'tractor/toggles') {
+        toggleDiv.innerHTML = Object.entries(clean).map(([k,v]) => `<div class='row'><span>${k}</span><span>${v ? 'ON' : 'OFF'}</span></div>`).join('');
+      }
+      if (topic === 'tractor/sensors') {
+        sensorDiv.innerHTML = `
+          <div class='row'><span>🌡️ Temp</span><span>${clean.temp} °C</span></div>
+          <div class='row'><span>🔋 Battery</span><span>${clean.battery} %</span></div>
+          <div class='row'><span>⚙️ RPM</span><span>${clean.rpm} rpm</span></div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
