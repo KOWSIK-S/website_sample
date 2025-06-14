@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔌 Live IoT Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #eef2f7; }
+    header { background: #003366; color: white; padding: 1em; text-align: center; font-size: 1.5em; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; padding: 1em; }
+    .card {
+      background: white; border-radius: 10px; padding: 1em; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    #map { height: 300px; }
+    .gpio-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5em; }
+    .switch { display: flex; align-items: center; justify-content: space-between; }
+    .slider { width: 100%; }
+    .label { font-size: 0.9em; margin-top: 0.2em; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>✨ Live IoT & GNSS Dashboard
+  </header>
+
+  <div class="grid">
+    <!-- GNSS Map -->
+    <div class="card">
+      <h3>📍 GNSS Location</h3>
+      <div id="map"></div>
+      <p><strong>Speed:</strong> <span id="speed">--</span> km/h &bull;
+         <strong>Dir:</strong> <span id="dir">--</span>&deg; &bull;
+         <strong>Alt:</strong> <span id="alt">--</span> m</p>
+    </div>
+
+    <!-- LiDAR Points -->
+    <div class="card">
+      <h3>📊 LiDAR Scatter</h3>
+      <div id="lidar" style="height:300px;"></div>
+    </div>
+
+    <!-- Digital GPIO -->
+    <div class="card">
+      <h3>⚖️ Digital GPIO (2-way)</h3>
+      <div class="gpio-grid">
+        <div><div class="switch"><label>D1</label><input type="checkbox" id="d1"></div></div>
+        <div><div class="switch"><label>D2</label><input type="checkbox" id="d2"></div></div>
+        <div><div class="switch"><label>D3</label><input type="checkbox" id="d3"></div></div>
+        <div><div class="switch"><label>D4</label><input type="checkbox" id="d4"></div></div>
+      </div>
+    </div>
+
+    <!-- Analog GPIO -->
+    <div class="card">
+      <h3>🎛 Analog GPIO</h3>
+      <div class="gpio-grid">
+        <div><input type="range" id="a1" min="0" max="5" step="0.1" class="slider"><div class="label">A1: <span id="a1v">--</span></div></div>
+        <div><input type="range" id="a2" min="0" max="5" step="0.1" class="slider"><div class="label">A2: <span id="a2v">--</span></div></div>
+        <div><input type="range" id="a3" min="0" max="5" step="0.1" class="slider"><div class="label">A3: <span id="a3v">--</span></div></div>
+        <div><input type="range" id="a4" min="0" max="5" step="0.1" class="slider"><div class="label">A4: <span id="a4v">--</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const client = mqtt.connect('ws://<YOUR_PI_IP>:9001');
+
+    // Setup GNSS map
+    let map = L.map('map').setView([10.9974, 76.9589], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let marker = L.marker([10.9974, 76.9589]).addTo(map);
+
+    let lidarX = [], lidarY = [];
+
+    client.on('connect', () => {
+      console.log('Connected to MQTT');
+      client.subscribe('sensor/gnss');
+      client.subscribe('sensor/lidar');
+      client.subscribe('gpio/analog');
+      client.subscribe('gpio/digital');
+    });
+
+    client.on('message', (topic, msg) => {
+      const data = JSON.parse(msg.toString().replace(/'/g, '"'));
+
+      if (topic === 'sensor/gnss') {
+        let { lat, lon, speed, direction, altitude } = data;
+        document.getElementById('speed').innerText = speed;
+        document.getElementById('dir').innerText = direction;
+        document.getElementById('alt').innerText = altitude;
+        marker.setLatLng([lat, lon]);
+        map.setView([lat, lon]);
+      }
+
+      if (topic === 'sensor/lidar') {
+        lidarX.push(data.x); lidarY.push(data.y);
+        if (lidarX.length > 100) { lidarX.shift(); lidarY.shift(); }
+        Plotly.newPlot('lidar', [{ x: lidarX, y: lidarY, mode: 'markers' }], { margin: { t: 0 } });
+      }
+
+      if (topic === 'gpio/digital') {
+        ['d1','d2','d3','d4'].forEach((id,i) => {
+          document.getElementById(id).checked = !!data['D'+(i+1)];
+        });
+      }
+
+      if (topic === 'gpio/analog') {
+        ['a1','a2','a3','a4'].forEach((id,i) => {
+          const val = data['A'+(i+1)];
+          document.getElementById(id).value = val;
+          document.getElementById(id+'v').innerText = val;
+        });
+      }
+    });
+
+    // Send GPIO controls
+    ['d1','d2','d3','d4'].forEach((id,i) => {
+      document.getElementById(id).onchange = (e) => {
+        let payload = {}; payload['D'+(i+1)] = e.target.checked ? 1 : 0;
+        client.publish('gpio/control/digital', JSON.stringify(payload));
+      };
+    });
+
+    ['a1','a2','a3','a4'].forEach((id,i) => {
+      document.getElementById(id).oninput = (e) => {
+        document.getElementById(id+'v').innerText = e.target.value;
+        let payload = {}; payload['A'+(i+1)] = parseFloat(e.target.value);
+        client.publish('gpio/control/analog', JSON.stringify(payload));
+      };
+    });
+  </script>
+</body>
+</html>
