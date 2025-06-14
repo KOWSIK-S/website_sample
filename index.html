@@ -1,80 +1,727 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tractor Dashboard</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-    .container { display: flex; height: 100vh; }
-    .sidebar { width: 200px; background: #222; color: white; padding: 20px; }
-    .sidebar a { display: block; margin: 10px 0; color: white; text-decoration: none; }
-    .main { flex: 1; padding: 20px; overflow-y: scroll; }
-    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .title { font-size: 1.2em; margin-bottom: 10px; }
-    .row { display: flex; justify-content: space-between; margin: 5px 0; }
-    .lidar { background: #eee; height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureAuth - Authentication System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .logout-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        /* Auth Forms */
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .social-btn {
+            background: #4285f4;
+            margin-bottom: 10px;
+        }
+
+        .social-btn.facebook {
+            background: #3b5998;
+        }
+
+        .social-btn.github {
+            background: #333;
+        }
+
+        .tab-container {
+            display: flex;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            display: none;
+            text-align: center;
+        }
+
+        .welcome-screen.active {
+            display: block;
+        }
+
+        .welcome-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            background: #e1e8ed;
+            border-radius: 10px;
+            height: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .security-indicator {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            gap: 10px;
+        }
+
+        .security-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e1e8ed;
+        }
+
+        .security-dot.active {
+            background: #4caf50;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .link-btn {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .auth-container {
+                padding: 25px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="sidebar">
-      <h2>🚜 Tractor UI</h2>
-      <a href="#">Dashboard</a>
-      <a href="#">Settings</a>
-      <a href="#">Login</a>
+    <div class="container">
+        <!-- Header (shown only when logged in) -->
+        <div class="header hidden" id="header">
+            <div class="logo">🔐 SecureAuth</div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Authentication Container -->
+        <div class="auth-container" id="authContainer">
+            <div class="tab-container">
+                <div class="tab active" onclick="showTab('login')">Login</div>
+                <div class="tab" onclick="showTab('register')">Register</div>
+                <div class="tab" onclick="showTab('forgot')">Reset</div>
+            </div>
+
+            <!-- Login Form -->
+            <div class="form-section active" id="loginForm">
+                <h2 style="margin-bottom: 30px; text-align: center; color: #333;">Welcome Back!</h2>
+                
+                <div class="form-group">
+                    <label for="loginEmail">Email or Username</label>
+                    <input type="text" id="loginEmail" placeholder="Enter your email or username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password">
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="rememberMe"> Remember Me
+                    </label>
+                </div>
+
+                <button class="btn" onclick="login()">Login</button>
+                
+                <button class="btn social-btn" onclick="socialLogin('google')">🔍 Login with Google</button>
+                <button class="btn social-btn facebook" onclick="socialLogin('facebook')">📘 Login with Facebook</button>
+                <button class="btn social-btn github" onclick="socialLogin('github')">🐙 Login with GitHub</button>
+                
+                <button class="link-btn" onclick="showTab('forgot')">Forgot Password?</button>
+            </div>
+
+            <!-- Registration Form -->
+            <div class="form-section" id="registerForm">
+                <h2 style="margin-bottom: 30px; text-align: center; color: #333;">Create Account</h2>
+                
+                <div class="form-group">
+                    <label for="regEmail">Email</label>
+                    <input type="email" id="regEmail" placeholder="Enter your email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regUsername">Username</label>
+                    <input type="text" id="regUsername" placeholder="Choose a username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" placeholder="Create a strong password" oninput="checkPasswordStrength()">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="passwordStrength" style="width: 0%"></div>
+                    </div>
+                    <div class="security-indicator">
+                        <span>Password Strength:</span>
+                        <div class="security-dot" id="dot1"></div>
+                        <div class="security-dot" id="dot2"></div>
+                        <div class="security-dot" id="dot3"></div>
+                        <div class="security-dot" id="dot4"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" placeholder="Confirm your password">
+                </div>
+                
+                <div class="form-group">
+                    <label for="securityQuestion">Security Question</label>
+                    <select id="securityQuestion">
+                        <option value="">Choose a security question</option>
+                        <option value="pet">What was your first pet's name?</option>
+                        <option value="school">What was your elementary school's name?</option>
+                        <option value="city">In what city were you born?</option>
+                        <option value="mother">What is your mother's maiden name?</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="securityAnswer">Security Answer</label>
+                    <input type="text" id="securityAnswer" placeholder="Enter your answer">
+                </div>
+
+                <button class="btn" onclick="register()">Create Account</button>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div class="form-section" id="forgotForm">
+                <h2 style="margin-bottom: 30px; text-align: center; color: #333;">Reset Password</h2>
+                
+                <div class="form-group">
+                    <label for="resetEmail">Email</label>
+                    <input type="email" id="resetEmail" placeholder="Enter your email">
+                </div>
+
+                <button class="btn" onclick="resetPassword()">Send Reset Link</button>
+                <button class="btn" onclick="showTab('security')" style="background: #ff9500;">Use Security Question</button>
+            </div>
+
+            <!-- Security Question Reset -->
+            <div class="form-section" id="securityForm">
+                <h2 style="margin-bottom: 30px; text-align: center; color: #333;">Security Question</h2>
+                
+                <div class="form-group">
+                    <label for="secEmail">Email</label>
+                    <input type="email" id="secEmail" placeholder="Enter your email">
+                </div>
+                
+                <div class="form-group">
+                    <label id="secQuestionDisplay">Security Question will appear here</label>
+                    <input type="text" id="secAnswer" placeholder="Enter your answer">
+                </div>
+
+                <button class="btn" onclick="verifySecurityAnswer()">Verify Answer</button>
+                <button class="link-btn" onclick="showTab('forgot')">Back to Email Reset</button>
+            </div>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-card">
+                <h1 style="color: #667eea; margin-bottom: 20px;">🎉 Welcome to SecureAuth!</h1>
+                <p style="font-size: 18px; color: #666; margin-bottom: 30px;">
+                    You have successfully logged in. Your account is protected with enterprise-grade security features.
+                </p>
+                
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <div style="background: #e8f5e8; padding: 15px 25px; border-radius: 25px;">
+                        <strong>Session Status:</strong> <span style="color: #4caf50;">Active</span>
+                    </div>
+                    <div style="background: #e3f2fd; padding: 15px 25px; border-radius: 25px;">
+                        <strong>Security Level:</strong> <span style="color: #2196f3;">High</span>
+                    </div>
+                    <div style="background: #fff3e0; padding: 15px 25px; border-radius: 25px;">
+                        <strong>Last Login:</strong> <span id="lastLogin">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Two-Factor Authentication</h3>
+                    <p>Add an extra layer of security to your account with 2FA via SMS, email, or authenticator apps.</p>
+                    <button class="btn" onclick="setup2FA()">Setup 2FA</button>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">👤</div>
+                    <h3>Profile Management</h3>
+                    <p>Update your personal information, change passwords, and manage your account settings.</p>
+                    <button class="btn" onclick="showProfile()">Manage Profile</button>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Security Monitor</h3>
+                    <p>View login history, monitor suspicious activities, and manage your active sessions.</p>
+                    <button class="btn" onclick="showSecurity()">View Security</button>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Social Accounts</h3>
+                    <p>Link your Google, Facebook, and GitHub accounts for easier login and enhanced security.</p>
+                    <button class="btn" onclick="manageSocial()">Manage Accounts</button>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Device Management</h3>
+                    <p>See all devices that have access to your account and remove any unauthorized devices.</p>
+                    <button class="btn" onclick="showDevices()">Manage Devices</button>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔔</div>
+                    <h3>Notifications</h3>
+                    <p>Configure security alerts, login notifications, and account activity updates.</p>
+                    <button class="btn" onclick="manageNotifications()">Setup Alerts</button>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="main">
-      <div class="card">
-        <div class="title">Analog Inputs</div>
-        <div id="analog"></div>
-      </div>
-      <div class="card">
-        <div class="title">Toggles</div>
-        <div id="toggles"></div>
-      </div>
-      <div class="card">
-        <div class="title">Sensor Data</div>
-        <div id="sensors"></div>
-      </div>
-      <div class="card">
-        <div class="title">LiDAR</div>
-        <div class="lidar">[LIDAR Plot Placeholder]</div>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    const analogDiv = document.getElementById('analog');
-    const toggleDiv = document.getElementById('toggles');
-    const sensorDiv = document.getElementById('sensors');
+    <!-- Notification Toast -->
+    <div class="notification" id="notification"></div>
 
-    const client = mqtt.connect('wss://austin-meetup-activated-marilyn.trycloudflare.com');
+    <script>
+        // Global state
+        let isLoggedIn = false;
+        let currentUser = null;
+        let users = {}; // In-memory user storage
+        let loginAttempts = {};
 
-    client.on('connect', () => {
-      console.log('MQTT connected');
-      client.subscribe('tractor/analog');
-      client.subscribe('tractor/toggles');
-      client.subscribe('tractor/sensors');
-    });
+        // Tab switching
+        function showTab(tabName) {
+            // Remove active class from all tabs and forms
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.form-section').forEach(section => section.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Show corresponding form
+            document.getElementById(tabName + 'Form').classList.add('active');
+        }
 
-    client.on('message', (topic, message) => {
-      const clean = JSON.parse(message.toString().replace(/'/g, '"'));
-      if (topic === 'tractor/analog') {
-        analogDiv.innerHTML = Object.entries(clean).map(([k,v]) => `<div class='row'><span>${k}</span><span>${v.toFixed(2)} V</span></div>`).join('');
-      }
-      if (topic === 'tractor/toggles') {
-        toggleDiv.innerHTML = Object.entries(clean).map(([k,v]) => `<div class='row'><span>${k}</span><span>${v ? 'ON' : 'OFF'}</span></div>`).join('');
-      }
-      if (topic === 'tractor/sensors') {
-        sensorDiv.innerHTML = `
-          <div class='row'><span>🌡️ Temp</span><span>${clean.temp} °C</span></div>
-          <div class='row'><span>🔋 Battery</span><span>${clean.battery} %</span></div>
-          <div class='row'><span>⚙️ RPM</span><span>${clean.rpm} rpm</span></div>
-        `;
-      }
-    });
-  </script>
+        // Password strength checker
+        function checkPasswordStrength() {
+            const password = document.getElementById('regPassword').value;
+            const strengthBar = document.getElementById('passwordStrength');
+            const dots = [document.getElementById('dot1'), document.getElementById('dot2'), 
+                         document.getElementById('dot3'), document.getElementById('dot4')];
+            
+            let strength = 0;
+            
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            const percentage = (strength / 5) * 100;
+            strengthBar.style.width = percentage + '%';
+            
+            dots.forEach((dot, index) => {
+                if (index < strength) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.background = type === 'error' ? '#f44336' : '#4caf50';
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Registration
+        function register() {
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUsername').value;
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const securityQuestion = document.getElementById('securityQuestion').value;
+            const securityAnswer = document.getElementById('securityAnswer').value;
+            
+            if (!email || !username || !password || !confirmPassword || !securityQuestion || !securityAnswer) {
+                showNotification('Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+            
+            if (users[email]) {
+                showNotification('User already exists', 'error');
+                return;
+            }
+            
+            // Store user
+            users[email] = {
+                username,
+                password,
+                securityQuestion,
+                securityAnswer,
+                createdAt: new Date().toISOString(),
+                isVerified: false,
+                twoFactorEnabled: false
+            };
+            
+            showNotification('Account created successfully! Please check your email for verification.');
+            showTab('login');
+        }
+
+        // Login
+        function login() {
+            const emailOrUsername = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!emailOrUsername || !password) {
+                showNotification('Please fill in all fields', 'error');
+                return;
+            }
+            
+            // Check login attempts
+            if (loginAttempts[emailOrUsername] >= 3) {
+                showNotification('Account temporarily locked due to multiple failed attempts', 'error');
+                return;
+            }
+            
+            // Find user by email or username
+            const user = Object.entries(users).find(([email, userData]) => 
+                email === emailOrUsername || userData.username === emailOrUsername
+            );
+            
+            if (!user || user[1].password !== password) {
+                loginAttempts[emailOrUsername] = (loginAttempts[emailOrUsername] || 0) + 1;
+                showNotification('Invalid credentials', 'error');
+                return;
+            }
+            
+            // Success
+            delete loginAttempts[emailOrUsername];
+            currentUser = { email: user[0], ...user[1] };
+            isLoggedIn = true;
+            
+            showWelcomeScreen();
+            showNotification('Login successful!');
+        }
+
+        // Social login
+        function socialLogin(provider) {
+            showNotification(`${provider} login would redirect to ${provider} OAuth...`);
+            // Simulate successful social login
+            setTimeout(() => {
+                currentUser = {
+                    email: `user@${provider}.com`,
+                    username: `${provider}User`,
+                    provider: provider
+                };
+                isLoggedIn = true;
+                showWelcomeScreen();
+                showNotification('Social login successful!');
+            }, 1500);
+        }
+
+        // Password reset
+        function resetPassword() {
+            const email = document.getElementById('resetEmail').value;
+            
+            if (!email) {
+                showNotification('Please enter your email', 'error');
+                return;
+            }
+            
+            if (!users[email]) {
+                showNotification('Email not found', 'error');
+                return;
+            }
+            
+            showNotification('Password reset link sent to your email!');
+        }
+
+        // Security question verification
+        function verifySecurityAnswer() {
+            const email = document.getElementById('secEmail').value;
+            const answer = document.getElementById('secAnswer').value;
+            
+            if (!users[email]) {
+                showNotification('Email not found', 'error');
+                return;
+            }
+            
+            if (users[email].securityAnswer.toLowerCase() === answer.toLowerCase()) {
+                showNotification('Security answer verified! You can now reset your password.');
+            } else {
+                showNotification('Incorrect security answer', 'error');
+            }
+        }
+
+        // Show welcome screen
+        function showWelcomeScreen() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('welcomeScreen').classList.add('active');
+            document.getElementById('lastLogin').textContent = new Date().toLocaleString();
+        }
+
+        // Logout
+        function logout() {
+            isLoggedIn = false;
+            currentUser = null;
+            
+            document.getElementById('authContainer').style.display = 'block';
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('welcomeScreen').classList.remove('active');
+            
+            showNotification('Logged out successfully!');
+            showTab('login');
+        }
+
+        // Feature functions
+        function setup2FA() {
+            showNotification('2FA setup would open a configuration modal...');
+        }
+
+        function showProfile() {
+            showNotification('Profile management would open user settings...');
+        }
+
+        function showSecurity() {
+            showNotification('Security monitor would show login history and active sessions...');
+        }
+
+        function manageSocial() {
+            showNotification('Social account management would show linked accounts...');
+        }
+
+        function showDevices() {
+            showNotification('Device management would show all logged-in devices...');
+        }
+
+        function manageNotifications() {
+            showNotification('Notification settings would open preferences...');
+        }
+
+        // Initialize with demo user
+        users['demo@example.com'] = {
+            username: 'demo',
+            password: 'demo123',
+            securityQuestion: 'pet',
+            securityAnswer: 'fluffy',
+            createdAt: new Date().toISOString(),
+            isVerified: true,
+            twoFactorEnabled: false
+        };
+    </script>
 </body>
 </html>
